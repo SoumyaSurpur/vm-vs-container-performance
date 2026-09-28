@@ -1,8 +1,6 @@
 # Experiment 2: Performance Analysis of Virtual Machines and Containers
 
 [![Author](https://img.shields.io/badge/Author-Soumya%20Surpur-blue.svg)](#)
-[![USN](https://img.shields.io/badge/USN-01FE24BCI121-green.svg)](#)
-[![Roll No](https://img.shields.io/badge/Roll%20No-245-orange.svg)](#)
 [![Environment](https://img.shields.io/badge/OS-Ubuntu%2022.04%20LTS-purple.svg)](#)
 [![Docker](https://img.shields.io/badge/Container%20Engine-Docker%20CE-blue.svg)](#)
 [![Status](https://img.shields.io/badge/Benchmark-Infrastructure%20Complete-brightgreen.svg)](#)
