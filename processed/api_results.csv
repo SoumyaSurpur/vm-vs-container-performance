@@ -1,0 +1,4 @@
+endpoint,requests,concurrency,vm_rps,c_rps,vm_lat_ms,c_lat_ms,vm_transfer_kb,c_transfer_kb
+/health,10000,100,419.79,371.07,238.21,269.49,67.24,59.43
+/compute,1000,10,12.24,10.76,817.31,929.47,2.07,1.82
+/memory,1000,10,16.43,14.4,608.5,694.62,2.63,2.31
