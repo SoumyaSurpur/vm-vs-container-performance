@@ -37,12 +37,13 @@ This experiment evaluates the runtime performance trade-offs between a virtual m
 2. [Experimental Environment & Specifications](#2-experimental-environment--specifications)
 3. [Benchmarking Methodology](#3-benchmarking-methodology)
 4. [Empirical Results & Quantitative Data](#4-empirical-results--quantitative-data)
-   - [Exercise 1: Baseline System Profiling](#exercise-1-baseline-system-profiling)
-   - [Exercise 2: CPU Performance Scalability](#exercise-2-cpu-performance-scalability)
-   - [Exercise 3: Memory Throughput & Latency](#exercise-3-memory-throughput--latency)
-   - [Exercise 4: Storage I/O Performance (fio)](#exercise-4-storage-io-performance-fio)
-   - [Exercise 5: Network Bandwidth & Stability (iperf3)](#exercise-5-network-bandwidth--stability-iperf3)
-   - [Exercise 6: Microservice / Application Benchmarking (FastAPI)](#exercise-6-microservice--application-benchmarking-fastapi)
+   - [Baseline System Profiling](#baseline-system-profiling)
+   - [Experiment 1: CPU Performance Scalability](#experiment-1-cpu-performance-scalability)
+   - [Experiment 2: Memory Throughput & Latency](#experiment-2-memory-throughput--latency)
+   - [Experiment 3: Storage I/O Performance (fio)](#experiment-3-storage-io-performance-fio)
+   - [Experiment 4: Network Bandwidth & Stability (iperf3)](#experiment-4-network-bandwidth--stability-iperf3)
+   - [Experiment 5: FastAPI Application Performance](#experiment-5-fastapi-application-performance)
+   - [Experiment 6: Startup Time Performance](#experiment-6-startup-time-performance)
 5. [Analytical Visualizations & Figures](#5-analytical-visualizations--figures)
 6. [In-Depth Technical Discussion](#6-in-depth-technical-discussion)
    - [6.1 CPU Performance and Thread Scalability](#61-cpu-performance-and-thread-scalability)
@@ -50,6 +51,7 @@ This experiment evaluates the runtime performance trade-offs between a virtual m
    - [6.3 Storage I/O Performance](#63-storage-io-performance)
    - [6.4 Network Performance](#64-network-performance)
    - [6.5 FastAPI Microservice Performance](#65-fastapi-microservice-performance)
+   - [6.6 Startup Time Performance](#66-startup-time-performance)
 7. [Experimental Evidence Gallery](#7-experimental-evidence-gallery)
 8. [Automation & Reproduction Scripts](#8-automation--reproduction-scripts)
 9. [Conclusion & Architectural Recommendations](#9-conclusion--architectural-recommendations)
@@ -106,7 +108,7 @@ To ensure reproducible and scientifically rigorous comparisons, standardized ben
 
 All metrics below represent verified readings extracted directly from raw benchmark output files and execution terminal screenshots.
 
-### Exercise 1: Baseline System Profiling
+### Baseline System Profiling
 
 A 30-second 2-thread baseline test was executed upon environment initialization:
 
@@ -123,7 +125,7 @@ A 30-second 2-thread baseline test was executed upon environment initialization:
 
 ---
 
-### Exercise 2: CPU Performance Scalability
+### Experiment 1: CPU Performance Scalability
 
 The CPU prime number verification benchmark was evaluated across 1, 2, 4, and 8 worker threads:
 
@@ -141,7 +143,7 @@ The CPU prime number verification benchmark was evaluated across 1, 2, 4, and 8 
 
 ---
 
-### Exercise 3: Memory Throughput & Latency
+### Experiment 2: Memory Throughput & Latency
 
 Memory sequential write bandwidth and latency were measured using 512 MB working set sizes:
 
@@ -156,7 +158,7 @@ Memory sequential write bandwidth and latency were measured using 512 MB working
 
 ---
 
-### Exercise 4: Storage I/O Performance (fio)
+### Experiment 3: Storage I/O Performance (fio)
 
 Storage I/O was evaluated across four distinct access patterns using `fio` with direct I/O (`--direct=1`):
 
@@ -173,7 +175,7 @@ Storage I/O was evaluated across four distinct access patterns using `fio` with 
 
 ---
 
-### Exercise 5: Network Bandwidth & Stability (iperf3)
+### Experiment 4: Network Bandwidth & Stability (iperf3)
 
 A 30-second TCP stream was executed between benchmark endpoints:
 - **VM Target:** Host loopback adapter (`127.0.0.1`)
@@ -192,7 +194,7 @@ A 30-second TCP stream was executed between benchmark endpoints:
 
 ---
 
-### Exercise 6: Microservice / Application Benchmarking (FastAPI)
+### Experiment 5: FastAPI Application Performance
 
 The FastAPI microservice was evaluated across three core application endpoints representing I/O-bound (`/health`), CPU-bound (`/compute`), and memory-bound (`/memory`) workloads using ApacheBench (`ab`):
 
@@ -211,6 +213,26 @@ The FastAPI microservice was evaluated across three core application endpoints r
    - In Docker, each inbound HTTP connection to port 8000 undergoes `iptables` NAT translation and traverses the `docker0` Linux bridge and virtual ethernet pair (`veth`). This microsecond-level packet routing adds up over 10,000 concurrent requests.
 3. **Application Reliability**:
    - Both targets demonstrated 100% request completion with zero dropped connections under heavy concurrency (100 concurrent workers).
+
+---
+
+### Experiment 6: Startup Time Performance
+
+Startup time was measured as the time required for the FastAPI application to become ready and respond successfully to the `/health` endpoint after launching the service.
+
+| Metric | Virtual Machine (VM) | Docker Container | Comparative Impact |
+| :--- | :---: | :---: | :--- |
+| **FastAPI Startup Time** | **2.961 s (2961 ms)** | **7.246 s (7246 ms)** | VM 59.13% faster |
+
+#### Analysis:
+
+- The FastAPI application became ready in **2.961 seconds** when executed natively inside the virtual machine.
+- The Dockerized FastAPI application required **7.246 seconds** to become ready.
+- In this measured run, the VM reached application readiness approximately **59.1% faster** than the Docker container.
+- The measurement includes application launch and the time required for the `/health` endpoint to return successfully.
+
+> [!NOTE]
+> Startup time is dependent on factors such as application initialization, Python/Uvicorn startup, container creation, networking setup, storage performance, and current system load. Therefore, this result represents the behavior of the tested configuration and should not be interpreted as a universal statement that VMs always start faster than containers.
 
 ---
 
@@ -275,6 +297,15 @@ The network performance visualization compares the VM loopback test with the Doc
 The FastAPI visualization compares application-level performance between the VM and Docker container for the `/health`, `/compute`, and `/memory` endpoints.
 
 [View FastAPI Performance Figure](figures/fastapi_performance.png)
+
+---
+
+#### Startup Time Performance
+
+<img width="1536" height="1024" alt="FastAPI Startup Time Comparison" src="https://github.com/user-attachments/assets/2ac102c1-8047-40b7-9c6a-485bc3cc4c96" />
+
+
+The startup time comparison shows that the Virtual Machine achieved faster FastAPI application readiness than the Docker container.
 
 ---
 
@@ -431,6 +462,27 @@ The results are specific to the tested VM resources, Docker configuration, FastA
 
 ---
 
+### 6.6 Startup Time Performance
+
+Startup time measures how long the FastAPI application takes to become ready to accept requests after it is launched.
+
+The startup measurement was performed by recording the time from application launch until the `/health` endpoint responded successfully.
+
+| Environment | Startup Time |
+| :--- | ---: |
+| Virtual Machine (Native FastAPI) | **2.961 s (2961 ms)** |
+| Docker Container | **7.246 s (7246 ms)** |
+
+The VM-based FastAPI application became ready in **2.961 seconds**, whereas the Dockerized application required **7.246 seconds**.
+
+Therefore, the VM reached application readiness approximately **59.1% faster** than the Docker container in this measured run.
+
+The startup measurement includes the time required to launch the FastAPI/Uvicorn service and detect a successful response from the `/health` endpoint.
+
+It is important to note that startup performance depends on factors such as application initialization, Python and Uvicorn startup, container creation, networking configuration, storage performance, and current system load. Therefore, this result represents the behavior of the tested experimental configuration and should not be interpreted as a universal characteristic of VMs or containers.
+
+---
+
 ## 7. Experimental Evidence Gallery
 
 The repository preserves complete photographic and terminal log evidence for every benchmark stage in the [`screenshots/`](screenshots/) directory.
@@ -520,23 +572,62 @@ python scripts/analyze_results.py
 
 ## 9. Conclusion & Architectural Recommendations
 
-This benchmark evaluation provides an empirical and architectural comparison between Virtual Machines and Docker Containers across compute, memory, storage, networking, and microservice application tiers:
+This benchmark evaluation provides an empirical comparison between Virtual Machines and Docker Containers across CPU, memory, storage I/O, networking, FastAPI application performance, and application startup time.
 
-1. **Compute Equivalence (Bare-Metal Instruction Execution):**
-   - Sysbench CPU benchmark results demonstrate $< 1\%$ variance across 1, 2, 4, and 8 threads.
-   - Because containers are native processes managed directly by the host Linux Completely Fair Scheduler (CFS), they avoid virtualization traps and binary translation overhead.
+### 1. CPU Performance
 
-2. **Storage I/O Performance (Direct VFS vs Hypervisor Driver):**
-   - Docker delivers **+34.58% higher 4K random read IOPS** (1,767 IOPS vs. 1,313 IOPS) and lower access latency (0.56 ms vs. 0.75 ms).
-   - Containers interact directly with the Linux Virtual File System (VFS) cache, while Virtual Machines incur guest OS filesystem translation and virtual SCSI controller interrupt emulation.
+- The Sysbench CPU results showed **closely matched performance** between the VM and Docker container across 1, 2, 4, and 8 threads.
+- The largest measured throughput difference was approximately **3.08%** at 4 threads.
+- At thread counts beyond the available 2 virtual CPU cores, throughput largely plateaued while latency increased due to CPU resource contention.
+- These results indicate that both environments delivered similar CPU performance for the tested workloads.
 
-3. **Memory & Network Virtualization Overhead:**
-   - VM direct loopback achieves higher memory write bandwidth and lower network latency with only 3 TCP retransmissions vs 13 on Docker.
-   - In containerized environments, packets traverse the `docker0` bridge, `veth` pairs, and `iptables` NAT routing rules, resulting in a ~13–14% throughput overhead under high-concurrency HTTP load (FastAPI ApacheBench benchmarks).
+### 2. Memory Performance
 
-4. **Strategic Workload Recommendations:**
-   - **Deploy Containers (Docker):** When designing cloud-native microservices, horizontally scaling REST APIs, CI/CD runners, and applications demanding rapid elasticity, high deployment density, and maximum random I/O throughput.
-   - **Deploy Virtual Machines (KVM / VMware):** When running untrusted multi-tenant workloads requiring hardware-enforced hypervisor security boundaries, heterogeneous OS kernels (Linux, Windows, BSD), or legacy enterprise monoliths.
+- The VM achieved higher measured sequential memory write throughput in both tested configurations.
+- At 1 thread, the VM achieved **9,541.97 MiB/s**, compared with **5,152.43 MiB/s** for Docker.
+- At 2 threads, the VM achieved **9,880.38 MiB/s**, compared with **6,970.16 MiB/s** for Docker.
+- These results are specific to the tested VM resources, Docker configuration, workload size, and system conditions.
+
+### 3. Storage I/O Performance
+
+- Storage performance varied according to the workload pattern.
+- Docker achieved higher performance for sequential read, random read, and random write in the measured tests.
+- The largest difference occurred in the **4K random-read workload**, where Docker achieved **1,767 IOPS** compared with **1,313 IOPS** for the VM, representing a **34.58% higher measured IOPS**.
+- The VM performed better for sequential write, achieving **358 MiB/s** compared with **291 MiB/s** for Docker.
+
+### 4. Network Performance
+
+- The VM loopback test achieved **14.1 Gbits/sec** sender and receiver throughput with **3 TCP retransmissions**.
+- The Docker bridge test achieved **13.7 Gbits/sec** sender throughput and **10.3 Gbits/sec** receiver throughput with **13 TCP retransmissions**.
+- The two tests used different network paths, so the results should be interpreted as measurements of the tested configurations rather than a perfectly identical network comparison.
+- Docker's tested network path involved the `veth` pair, `docker0` bridge, and packet-processing/NAT components.
+
+### 5. FastAPI Application Performance
+
+- The FastAPI application was evaluated using `/health`, `/compute`, and `/memory` endpoints with ApacheBench.
+- The VM achieved higher measured throughput for all three endpoints:
+  - `/health`: **419.79 req/sec** vs **371.07 req/sec**
+  - `/compute`: **12.24 req/sec** vs **10.76 req/sec**
+  - `/memory`: **16.43 req/sec** vs **14.40 req/sec**
+- All tested requests completed successfully with **zero failed requests**.
+- The measured results indicate that the VM provided approximately **13–14% higher application throughput** for these particular FastAPI workloads.
+
+### 6. Startup Time Performance
+
+- The FastAPI application became ready in **2.961 seconds** when executed natively inside the VM.
+- The Dockerized application became ready in **7.246 seconds**.
+- In this measured run, the VM reached application readiness approximately **59.1% faster** than Docker.
+- This result is specific to the tested configuration and includes application launch and successful `/health` response detection.
+
+### 7. Overall Architectural Recommendation
+
+The experiments demonstrate that neither virtualization approach was universally faster across every workload.
+
+- **Docker Containers:** Performed particularly well in the tested storage workloads, including 4K random reads, and provide an OS-level isolation model suitable for containerized application deployment.
+- **Virtual Machines:** Produced higher measured memory throughput, higher FastAPI application throughput, and faster measured FastAPI application readiness in this experimental configuration.
+- **Workload-specific selection:** The appropriate technology should therefore be selected according to workload requirements, isolation needs, deployment model, resource constraints, and performance characteristics rather than assuming that one approach is always faster.
+
+Overall, the experiment demonstrates that VM and container performance differences depend strongly on the subsystem and workload being evaluated. The benchmark results provide an empirical basis for understanding these trade-offs within the tested environment.
 
 ---
 
