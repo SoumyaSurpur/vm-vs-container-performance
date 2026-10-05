@@ -58,37 +58,8 @@ This experiment evaluates the runtime performance trade-offs between a virtual m
 
 ## 1. Architectural Comparison: VM vs Container
 
-```
-+-------------------------------------------------------+  +-------------------------------------------------------+
-|                 VIRTUAL MACHINE (VM)                  |  |                   DOCKER CONTAINER                    |
-|             (Hardware-Level Virtualization)           |  |             (OS-Level Virtualization)                 |
-+-------------------------------------------------------+  +-------------------------------------------------------+
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |   Application A    |        |   Application B    | |  |  |   Application A    |        |   Application B    | |
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |  Bins / Libraries  |        |  Bins / Libraries  | |  |  |  Bins / Libraries  |        |  Bins / Libraries  | |
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |  Guest OS Kernel   |        |  Guest OS Kernel   | |  |  | Namespaces / Cgroup|        | Namespaces / Cgroup| |
-|  +--------------------+        +--------------------+ |  |  +--------------------+--------+--------------------+ |
-|            |                             |            |  |                            |                          |
-|            +--------------+--------------+            |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |             Container Engine (Docker)            | |
-|  |           Hypervisor / VMM (Type-1 / 2)          | |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |                            |                          |
-|                           |                           |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |                Host OS Kernel                    | |
-|  |                   Host OS /                      | |  |  |           (Shared Linux Kernel 5.15+)            | |
-|  |              Bare-Metal Hardware                 | |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |                            |                          |
-|                           |                           |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |               Physical Hardware                  | |
-|  |     Physical Hardware (CPU, RAM, Disk, NIC)      | |  |  |     Physical Hardware (CPU, RAM, Disk, NIC)      | |
-|  +--------------------------------------------------+ |  |  +--------------------------------------------------+ |
-+-------------------------------------------------------+  +-------------------------------------------------------+
-```
+<img width="2089" height="753" alt="Virtual Machines vs Containers Diagram" src="https://github.com/user-attachments/assets/a4d7d0b6-0335-425e-919d-1b030c802b53" />
+
 
 ### Core Architectural Distinctions
 
@@ -127,27 +98,7 @@ Both environments were provisioned and profiled under matched host conditions to
 
 To ensure reproducible and scientifically rigorous comparisons, standardized benchmark invocations were executed on both targets:
 
-```
-+---------------------------------------------------------------------------------------------+
-|                                BENCHMARK EXECUTION MATRIX                                   |
-+-------------------+-----------------+-------------------------------------------------------+
-| Subsystem         | Utility         | Execution Command & Parameters                        |
-+-------------------+-----------------+-------------------------------------------------------+
-| Baseline          | sysbench        | sysbench cpu --threads=2 --time=30 run                |
-| CPU (Scalability) | sysbench        | sysbench cpu --threads={1,2,4,8} --cpu-max-prime=20000|
-|                   |                 |              --time=30 run                            |
-| Memory            | sysbench        | sysbench memory --threads={1,2} --memory-block-size=1M|
-|                   |                 |                 --memory-total-size=512M              |
-|                   |                 |                 --memory-oper=write run               |
-| Storage (Seq)     | fio             | fio --name=seq{read,write} --rw={read,write} --bs=1M  |
-|                   |                 |     --size=512M --direct=1 --runtime=30 --time_based  |
-| Storage (Rand)    | fio             | fio --name=rand{read,write} --rw={randread,randwrite} |
-|                   |                 |     --bs=4k --size=512M --iodepth=4 --direct=1        |
-|                   |                 |     --runtime=30 --time_based                         |
-| Network           | iperf3          | iperf3 -c {127.0.0.1 | 172.17.0.1} -t 30              |
-| Application       | FastAPI / wrk   | wrk -t4 -c100 -d30s http://localhost:8000/compute/1000|
-+-------------------+-----------------+-------------------------------------------------------+
-```
+<img width="1774" height="887" alt="Benchmark Execution Matrix Table" src="https://github.com/user-attachments/assets/058b242b-4c0c-435a-847a-afe39d0786e3" />
 
 ---
 
