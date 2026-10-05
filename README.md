@@ -1,8 +1,6 @@
 # Experiment 2: Performance Analysis of Virtual Machines and Containers
 
 [![Author](https://img.shields.io/badge/Author-Soumya%20Surpur-blue.svg)](#)
-[![USN](https://img.shields.io/badge/USN-01FE24BCI121-green.svg)](#)
-[![Roll No](https://img.shields.io/badge/Roll%20No-245-orange.svg)](#)
 [![Environment](https://img.shields.io/badge/OS-Ubuntu%2022.04%20LTS-purple.svg)](#)
 [![Docker](https://img.shields.io/badge/Container%20Engine-Docker%20CE-blue.svg)](#)
 [![Status](https://img.shields.io/badge/Benchmark-Infrastructure%20Complete-brightgreen.svg)](#)
@@ -33,57 +31,37 @@ This experiment evaluates the runtime performance trade-offs between a virtual m
 
 ## Table of Contents
 
+## Table of Contents
+
 1. [Architectural Comparison: VM vs Container](#1-architectural-comparison-vm-vs-container)
 2. [Experimental Environment & Specifications](#2-experimental-environment--specifications)
 3. [Benchmarking Methodology](#3-benchmarking-methodology)
 4. [Empirical Results & Quantitative Data](#4-empirical-results--quantitative-data)
-   - [Exercise 1: Baseline System Profiling](#exercise-1-baseline-system-profiling)
-   - [Exercise 2: CPU Performance Scalability](#exercise-2-cpu-performance-scalability)
-   - [Exercise 3: Memory Throughput & Latency](#exercise-3-memory-throughput--latency)
-   - [Exercise 4: Storage I/O Performance (fio)](#exercise-4-storage-io-performance-fio)
-   - [Exercise 5: Network Bandwidth & Stability (iperf3)](#exercise-5-network-bandwidth--stability-iperf3)
-   - [Exercise 6: Microservice / Application Benchmarking (FastAPI)](#exercise-6-microservice--application-benchmarking-fastapi)
+   - [Baseline System Profiling](#baseline-system-profiling)
+   - [Experiment 1: CPU Performance Scalability](#experiment-1-cpu-performance-scalability)
+   - [Experiment 2: Memory Throughput & Latency](#experiment-2-memory-throughput--latency)
+   - [Experiment 3: Storage I/O Performance (fio)](#experiment-3-storage-io-performance-fio)
+   - [Experiment 4: Network Bandwidth & Stability (iperf3)](#experiment-4-network-bandwidth--stability-iperf3)
+   - [Experiment 5: FastAPI Application Performance](#experiment-5-fastapi-application-performance)
+   - [Experiment 6: Startup Time Performance](#experiment-6-startup-time-performance)
 5. [Analytical Visualizations & Figures](#5-analytical-visualizations--figures)
 6. [In-Depth Technical Discussion](#6-in-depth-technical-discussion)
+   - [6.1 CPU Performance and Thread Scalability](#61-cpu-performance-and-thread-scalability)
+   - [6.2 Memory Performance](#62-memory-performance)
+   - [6.3 Storage I/O Performance](#63-storage-io-performance)
+   - [6.4 Network Performance](#64-network-performance)
+   - [6.5 FastAPI Microservice Performance](#65-fastapi-microservice-performance)
+   - [6.6 Startup Time Performance](#66-startup-time-performance)
 7. [Experimental Evidence Gallery](#7-experimental-evidence-gallery)
 8. [Automation & Reproduction Scripts](#8-automation--reproduction-scripts)
-9. [Project Directory Layout](#9-project-directory-layout)
-
+9. [Conclusion & Architectural Recommendations](#9-conclusion--architectural-recommendations)
+10. [Project Directory Layout](#10-project-directory-layout)
 ---
 
 ## 1. Architectural Comparison: VM vs Container
 
-```
-+-------------------------------------------------------+  +-------------------------------------------------------+
-|                 VIRTUAL MACHINE (VM)                  |  |                   DOCKER CONTAINER                    |
-|             (Hardware-Level Virtualization)           |  |             (OS-Level Virtualization)                 |
-+-------------------------------------------------------+  +-------------------------------------------------------+
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |   Application A    |        |   Application B    | |  |  |   Application A    |        |   Application B    | |
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |  Bins / Libraries  |        |  Bins / Libraries  | |  |  |  Bins / Libraries  |        |  Bins / Libraries  | |
-|  +--------------------+        +--------------------+ |  |  +--------------------+        +--------------------+ |
-|  |  Guest OS Kernel   |        |  Guest OS Kernel   | |  |  | Namespaces / Cgroup|        | Namespaces / Cgroup| |
-|  +--------------------+        +--------------------+ |  |  +--------------------+--------+--------------------+ |
-|            |                             |            |  |                            |                          |
-|            +--------------+--------------+            |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |             Container Engine (Docker)            | |
-|  |           Hypervisor / VMM (Type-1 / 2)          | |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |                            |                          |
-|                           |                           |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |                Host OS Kernel                    | |
-|  |                   Host OS /                      | |  |  |           (Shared Linux Kernel 5.15+)            | |
-|  |              Bare-Metal Hardware                 | |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |                            |                          |
-|                           |                           |  |                            v                          |
-|                           v                           |  |  +--------------------------------------------------+ |
-|  +--------------------------------------------------+ |  |  |               Physical Hardware                  | |
-|  |     Physical Hardware (CPU, RAM, Disk, NIC)      | |  |  |     Physical Hardware (CPU, RAM, Disk, NIC)      | |
-|  +--------------------------------------------------+ |  |  +--------------------------------------------------+ |
-+-------------------------------------------------------+  +-------------------------------------------------------+
-```
+<img width="2089" height="753" alt="Virtual Machines vs Containers Diagram" src="https://github.com/user-attachments/assets/a4d7d0b6-0335-425e-919d-1b030c802b53" />
+
 
 ### Core Architectural Distinctions
 
@@ -122,27 +100,7 @@ Both environments were provisioned and profiled under matched host conditions to
 
 To ensure reproducible and scientifically rigorous comparisons, standardized benchmark invocations were executed on both targets:
 
-```
-+---------------------------------------------------------------------------------------------+
-|                                BENCHMARK EXECUTION MATRIX                                   |
-+-------------------+-----------------+-------------------------------------------------------+
-| Subsystem         | Utility         | Execution Command & Parameters                        |
-+-------------------+-----------------+-------------------------------------------------------+
-| Baseline          | sysbench        | sysbench cpu --threads=2 --time=30 run                |
-| CPU (Scalability) | sysbench        | sysbench cpu --threads={1,2,4,8} --cpu-max-prime=20000|
-|                   |                 |              --time=30 run                            |
-| Memory            | sysbench        | sysbench memory --threads={1,2} --memory-block-size=1M|
-|                   |                 |                 --memory-total-size=512M              |
-|                   |                 |                 --memory-oper=write run               |
-| Storage (Seq)     | fio             | fio --name=seq{read,write} --rw={read,write} --bs=1M  |
-|                   |                 |     --size=512M --direct=1 --runtime=30 --time_based  |
-| Storage (Rand)    | fio             | fio --name=rand{read,write} --rw={randread,randwrite} |
-|                   |                 |     --bs=4k --size=512M --iodepth=4 --direct=1        |
-|                   |                 |     --runtime=30 --time_based                         |
-| Network           | iperf3          | iperf3 -c {127.0.0.1 | 172.17.0.1} -t 30              |
-| Application       | FastAPI / wrk   | wrk -t4 -c100 -d30s http://localhost:8000/compute/1000|
-+-------------------+-----------------+-------------------------------------------------------+
-```
+<img width="1774" height="887" alt="Benchmark Execution Matrix Table" src="https://github.com/user-attachments/assets/058b242b-4c0c-435a-847a-afe39d0786e3" />
 
 ---
 
@@ -150,7 +108,7 @@ To ensure reproducible and scientifically rigorous comparisons, standardized ben
 
 All metrics below represent verified readings extracted directly from raw benchmark output files and execution terminal screenshots.
 
-### Exercise 1: Baseline System Profiling
+### Baseline System Profiling
 
 A 30-second 2-thread baseline test was executed upon environment initialization:
 
@@ -167,7 +125,7 @@ A 30-second 2-thread baseline test was executed upon environment initialization:
 
 ---
 
-### Exercise 2: CPU Performance Scalability
+### Experiment 1: CPU Performance Scalability
 
 The CPU prime number verification benchmark was evaluated across 1, 2, 4, and 8 worker threads:
 
@@ -185,7 +143,7 @@ The CPU prime number verification benchmark was evaluated across 1, 2, 4, and 8 
 
 ---
 
-### Exercise 3: Memory Throughput & Latency
+### Experiment 2: Memory Throughput & Latency
 
 Memory sequential write bandwidth and latency were measured using 512 MB working set sizes:
 
@@ -200,7 +158,7 @@ Memory sequential write bandwidth and latency were measured using 512 MB working
 
 ---
 
-### Exercise 4: Storage I/O Performance (fio)
+### Experiment 3: Storage I/O Performance (fio)
 
 Storage I/O was evaluated across four distinct access patterns using `fio` with direct I/O (`--direct=1`):
 
@@ -217,7 +175,7 @@ Storage I/O was evaluated across four distinct access patterns using `fio` with 
 
 ---
 
-### Exercise 5: Network Bandwidth & Stability (iperf3)
+### Experiment 4: Network Bandwidth & Stability (iperf3)
 
 A 30-second TCP stream was executed between benchmark endpoints:
 - **VM Target:** Host loopback adapter (`127.0.0.1`)
@@ -236,7 +194,7 @@ A 30-second TCP stream was executed between benchmark endpoints:
 
 ---
 
-### Exercise 6: Microservice / Application Benchmarking (FastAPI)
+### Experiment 5: FastAPI Application Performance
 
 The FastAPI microservice was evaluated across three core application endpoints representing I/O-bound (`/health`), CPU-bound (`/compute`), and memory-bound (`/memory`) workloads using ApacheBench (`ab`):
 
@@ -258,100 +216,313 @@ The FastAPI microservice was evaluated across three core application endpoints r
 
 ---
 
+### Experiment 6: Startup Time Performance
+
+Startup time was measured as the time required for the FastAPI application to become ready and respond successfully to the `/health` endpoint after launching the service.
+
+| Metric | Virtual Machine (VM) | Docker Container | Comparative Impact |
+| :--- | :---: | :---: | :--- |
+| **FastAPI Startup Time** | **2.961 s (2961 ms)** | **7.246 s (7246 ms)** | VM 59.13% faster |
+
+#### Analysis:
+
+- The FastAPI application became ready in **2.961 seconds** when executed natively inside the virtual machine.
+- The Dockerized FastAPI application required **7.246 seconds** to become ready.
+- In this measured run, the VM reached application readiness approximately **59.1% faster** than the Docker container.
+- The measurement includes application launch and the time required for the `/health` endpoint to return successfully.
+
+> [!NOTE]
+> Startup time is dependent on factors such as application initialization, Python/Uvicorn startup, container creation, networking setup, storage performance, and current system load. Therefore, this result represents the behavior of the tested configuration and should not be interpreted as a universal statement that VMs always start faster than containers.
+
+---
+
 ## 5. Analytical Visualizations & Figures
 
-All figures below were generated using Matplotlib from the empirical CSV data stored in [`results/processed/`](results/processed/).
+All figures below were generated using Matplotlib from the empirical CSV data stored in the [`processed/`](processed/) directory.
 
 ### Multi-Panel Overall Performance Dashboard
 
-![Overall Performance Dashboard](results/figures/overall_performance_dashboard.png)
+![Overall Performance Dashboard](figures/overall_performance_dashboard.png)
 
-*Figure 1: Comprehensive 6-panel dashboard comparing VM vs Docker Container across CPU Throughput, Memory Bandwidth, Storage Bandwidth, Network Throughput, and FastAPI Microservice Performance.*
+*Figure 1: Comprehensive 6-panel dashboard comparing VM and Docker Container performance across CPU throughput, memory bandwidth, storage performance, network throughput, and FastAPI microservice performance.*
 
 ---
 
 ### Subsystem Visualizations
 
-````carousel
-![CPU Scalability](results/figures/cpu_scalability.png)
-<!-- slide -->
-![Memory Performance](results/figures/memory_performance.png)
-<!-- slide -->
-![Disk I/O Performance](results/figures/disk_io_performance.png)
-<!-- slide -->
-![Network Performance](results/figures/network_performance.png)
-<!-- slide -->
-![FastAPI Performance](results/figures/fastapi_performance.png)
-````
+#### CPU Scalability
 
-1. **CPU Scalability:** [cpu_scalability.png](results/figures/cpu_scalability.png) highlights execution throughput up to 2 cores and latency under thread contention.
-2. **Memory Performance:** [memory_performance.png](results/figures/memory_performance.png) compares memory write throughput and access latency.
-3. **Disk I/O Performance:** [disk_io_performance.png](results/figures/disk_io_performance.png) demonstrates container superiority in random 4K read operations (+34.58% IOPS).
-4. **Network Performance:** [network_performance.png](results/figures/network_performance.png) contrasts raw loopback speed against the Docker bridge overhead and packet retransmissions.
-5. **FastAPI Microservice:** [fastapi_performance.png](results/figures/fastapi_performance.png) compares application-level requests per second and mean response latency across `/health`, `/compute`, and `/memory`.
+![CPU Scalability](figures/cpu_scalability.png)
 
-1. **CPU Scalability:** [cpu_scalability.png](results/figures/cpu_scalability.png) highlights identical execution throughput up to 2 cores and the subsequent latency ramp under thread over-subscription.
-2. **Memory Performance:** [memory_performance.png](results/figures/memory_performance.png) compares memory write throughput and access latency across 1 and 2 threads.
-3. **Disk I/O Performance:** [disk_io_performance.png](results/figures/disk_io_performance.png) demonstrates container superiority in random 4K read operations (+34.58% IOPS).
-4. **Network Performance:** [network_performance.png](results/figures/network_performance.png) contrasts raw loopback speed against the Docker bridge overhead and packet retransmissions.
+The CPU scalability visualization compares VM and Docker throughput across 1, 2, 4, and 8 threads.
+
+[View CPU Scalability Figure](figures/cpu_scalability.png)
+
+---
+
+#### Memory Performance
+
+![Memory Performance](figures/memory_performance.png)
+
+The memory performance visualization compares memory write throughput for VM and Docker using 1-thread and 2-thread workloads.
+
+[View Memory Performance Figure](figures/memory_performance.png)
+
+---
+
+#### Disk I/O Performance
+
+![Disk I/O Performance](figures/disk_io_performance.png)
+
+The disk I/O visualization compares sequential read, sequential write, random read, and random write performance between the VM and Docker container.
+
+[View Disk I/O Performance Figure](figures/disk_io_performance.png)
+
+---
+
+#### Network Performance
+
+![Network Performance](figures/network_performance.png)
+
+The network performance visualization compares the VM loopback test with the Docker bridge networking configuration.
+
+[View Network Performance Figure](figures/network_performance.png)
+
+---
+
+#### FastAPI Microservice Performance
+
+![FastAPI Performance](figures/fastapi_performance.png)
+
+The FastAPI visualization compares application-level performance between the VM and Docker container for the `/health`, `/compute`, and `/memory` endpoints.
+
+[View FastAPI Performance Figure](figures/fastapi_performance.png)
+
+---
+
+#### Startup Time Performance
+
+<img width="1536" height="1024" alt="FastAPI Startup Time Comparison" src="https://github.com/user-attachments/assets/2ac102c1-8047-40b7-9c6a-485bc3cc4c96" />
+
+
+The startup time comparison shows that the Virtual Machine achieved faster FastAPI application readiness than the Docker container.
 
 ---
 
 ## 6. In-Depth Technical Discussion
 
-### 1. Why CPU Throughput is Identical
-In Docker, containers are simply isolated Linux processes governed by namespaces and cgroups. CPU instructions do not undergo emulation or hypervisor trap-and-emulate cycles. The Linux Completely Fair Scheduler (CFS) assigns container threads directly to the host CPU cores. As a result, Sysbench CPU prime calculation throughput in Docker matches VM performance within normal statistical margin ($\pm 1\%$).
+### 6.1 CPU Performance and Thread Scalability
 
-### 2. Why Container Random Storage I/O Outperforms VM
-In a Virtual Machine, every storage I/O request must be trapped by the hypervisor's virtual storage controller (e.g., LSI Logic / virtio-scsi), mapped to the guest virtual disk image format (`.vmdk` / `.qcow2`), and translated to the host filesystem. In contrast, Docker container volumes and direct filesystem mounts interact directly with the host Linux VFS layer, bypassing virtualization layers and unlocking higher 4K random read IOPS (1,767 vs. 1,313 IOPS).
+Docker containers run applications as Linux processes isolated using namespaces and cgroups. CPU instructions are executed directly by the processor rather than being emulated by the container runtime.
 
-### 3. Network Namespace Overhead in Bridge Mode
-When running `iperf3` inside a container attached to the default bridge network (`bridge`), packets must traverse:
-$$\text{Container Socket} \longrightarrow \text{veth pair} \longrightarrow \text{docker0 Linux Bridge} \longrightarrow \text{iptables NAT} \longrightarrow \text{Host Stack}$$
-This virtual routing introduces packet latency and buffer contention, explaining the 13 TCP retransmissions and 10.3 Gbps receiver throughput compared to the VM's direct loopback connection (14.1 Gbps and 3 retransmissions).
+The measured Sysbench CPU results showed similar throughput between the VM and Docker container for the tested workloads.
+
+| Threads | VM Throughput (events/sec) | Docker Throughput (events/sec) |
+| :---: | ---: | ---: |
+| 1 | 515.84 | 517.19 |
+| 2 | 883.55 | 894.38 |
+| 4 | 928.17 | 900.45 |
+| 8 | 905.17 | 914.42 |
+
+The test environment provided 2 virtual CPU cores. Therefore, the 4-thread and 8-thread experiments represent over-subscription workloads. As the number of threads increases beyond the available CPU cores, throughput largely plateaus while latency increases because multiple threads compete for the same CPU resources.
+
+At 2 threads, the VM achieved 883.55 events/sec while Docker achieved 894.38 events/sec. At 8 threads, the VM achieved 905.17 events/sec while Docker achieved 914.42 events/sec.
+
+---
+
+### 6.2 Memory Performance
+
+The memory benchmark measured sequential memory write throughput using 1-thread and 2-thread workloads.
+
+| Threads | VM (MiB/s) | Docker (MiB/s) |
+| :---: | ---: | ---: |
+| 1 | 9,541.97 | 5,152.43 |
+| 2 | 9,880.38 | 6,970.16 |
+
+For the tested configuration, the VM produced higher measured memory write throughput than the Docker container.
+
+At 1 thread, the VM achieved 9,541.97 MiB/s compared with 5,152.43 MiB/s for Docker.
+
+At 2 threads, the VM achieved 9,880.38 MiB/s compared with 6,970.16 MiB/s for Docker.
+
+These results are specific to the experimental environment and workload. Memory performance can be affected by CPU allocation, available memory, kernel configuration, caching, and resource-management mechanisms.
+
+---
+
+### 6.3 Storage I/O Performance
+
+The storage benchmark evaluated sequential and random I/O operations.
+
+| Operation | VM | Docker |
+| :--- | ---: | ---: |
+| Sequential Write | 358 MiB/s | 291 MiB/s |
+| Sequential Read | 461 MiB/s | 500 MiB/s |
+| Random Read | 1,313 IOPS | 1,767 IOPS |
+| Random Write | 1,331 IOPS | 1,346 IOPS |
+
+The largest measured difference occurred during the 4K random-read workload.
+
+The VM achieved:
+
+```text
+1,313 IOPS
+```
+---
+### 6.4 Network Performance
+
+The network benchmark evaluated TCP throughput and retransmission behavior using `iperf3`. The two environments were tested using different network paths:
+
+- **VM:** Host loopback interface (`127.0.0.1`)
+- **Docker:** Docker bridge gateway (`172.17.0.1`) through the `docker0` interface
+
+The measured results were:
+
+| Metric | VM Loopback (`127.0.0.1`) | Docker Bridge (`172.17.0.1`) |
+| :--- | ---: | ---: |
+| Sender Bitrate | 14.1 Gbits/sec | 13.7 Gbits/sec |
+| Receiver Bitrate | 14.1 Gbits/sec | 10.3 Gbits/sec |
+| Data Transferred | 49.3 GBytes | 47.9 GBytes |
+| TCP Retransmissions | 3 packets | 13 packets |
+
+The VM loopback test achieved approximately **14.1 Gbits/sec** for both sender and receiver throughput, with only **3 TCP retransmissions**.
+
+The Docker bridge test achieved approximately **13.7 Gbits/sec** sender throughput and **10.3 Gbits/sec** receiver throughput, with **13 TCP retransmissions**.
+
+The Docker network path can be represented as:
+
+```text
+Container Socket
+       ↓
+    veth Pair
+       ↓
+   docker0 Bridge
+       ↓
+Packet Filtering / NAT
+       ↓
+   Host Network Stack
+```
+---
+### 6.5 FastAPI Microservice Performance
+
+The FastAPI experiment evaluated application-level performance using ApacheBench (`ab`) across three endpoints representing different workload characteristics:
+
+- **`/health`** — lightweight request-processing workload
+- **`/compute`** — CPU-intensive workload
+- **`/memory`** — memory-intensive workload
+
+The measured results were:
+
+| Endpoint | VM Throughput | Container Throughput | VM Mean Latency | Container Mean Latency |
+| :--- | ---: | ---: | ---: | ---: |
+| `/health` | 419.79 req/sec | 371.07 req/sec | 238.21 ms | 269.49 ms |
+| `/compute` | 12.24 req/sec | 10.76 req/sec | 817.31 ms | 929.47 ms |
+| `/memory` | 16.43 req/sec | 14.40 req/sec | 608.50 ms | 694.62 ms |
+
+All three endpoints completed successfully with **zero failed requests**.
+
+The `/health` endpoint was tested with 10,000 requests at a concurrency level of 100, while the `/compute` and `/memory` endpoints were tested with 1,000 requests at a concurrency level of 10.
+
+#### `/health` Endpoint
+
+The `/health` endpoint performs a lightweight operation and returns the health status of the application.
+
+The VM achieved **419.79 requests/sec**, while the Docker container achieved **371.07 requests/sec**.
+
+The mean latency was **238.21 ms** for the VM and **269.49 ms** for Docker.
+
+#### `/compute` Endpoint
+
+The `/compute` endpoint performs a CPU-intensive calculation involving one million iterations.
+
+The VM achieved **12.24 requests/sec**, while Docker achieved **10.76 requests/sec**.
+
+The mean latency was **817.31 ms** for the VM and **929.47 ms** for Docker.
+
+This endpoint places greater computational demand on the execution environment than the lightweight `/health` endpoint.
+
+#### `/memory` Endpoint
+
+The `/memory` endpoint creates a Python list containing one million elements and returns the number of elements.
+
+The VM achieved **16.43 requests/sec**, while Docker achieved **14.40 requests/sec**.
+
+The mean latency was **608.50 ms** for the VM and **694.62 ms** for Docker.
+
+This workload introduces additional memory allocation and management operations.
+
+#### Application-Level Interpretation
+
+The FastAPI results demonstrate that application performance varies according to the workload being executed.
+
+For all three tested endpoints, the VM recorded higher measured throughput and lower mean latency than the Docker container in this experiment.
+
+The Docker deployment also introduces a container networking path involving the published port, `docker0` bridge, virtual ethernet (`veth`) interfaces, and packet-processing rules. These additional components form part of the request path when the FastAPI service is accessed through the Docker-published port.
+
+The results are specific to the tested VM resources, Docker configuration, FastAPI implementation, and ApacheBench parameters. Therefore, they should be interpreted as empirical results for this experimental setup rather than universal performance characteristics of VMs and Docker containers.
+
+---
+
+### 6.6 Startup Time Performance
+
+Startup time measures how long the FastAPI application takes to become ready to accept requests after it is launched.
+
+The startup measurement was performed by recording the time from application launch until the `/health` endpoint responded successfully.
+
+| Environment | Startup Time |
+| :--- | ---: |
+| Virtual Machine (Native FastAPI) | **2.961 s (2961 ms)** |
+| Docker Container | **7.246 s (7246 ms)** |
+
+The VM-based FastAPI application became ready in **2.961 seconds**, whereas the Dockerized application required **7.246 seconds**.
+
+Therefore, the VM reached application readiness approximately **59.1% faster** than the Docker container in this measured run.
+
+The startup measurement includes the time required to launch the FastAPI/Uvicorn service and detect a successful response from the `/health` endpoint.
+
+It is important to note that startup performance depends on factors such as application initialization, Python and Uvicorn startup, container creation, networking configuration, storage performance, and current system load. Therefore, this result represents the behavior of the tested experimental configuration and should not be interpreted as a universal characteristic of VMs or containers.
 
 ---
 
 ## 7. Experimental Evidence Gallery
 
-The repository preserves complete photographic and terminal log evidence for every benchmark stage in [`results/screenshots/`](results/screenshots/):
+The repository preserves complete photographic and terminal log evidence for every benchmark stage in the [`screenshots/`](screenshots/) directory.
 
 | Step / Exercise | Screenshot Evidence File | Key Verified Metric |
 | :--- | :--- | :--- |
-| **VM Baseline** | [01_vm_baseline_profiling.jpeg](results/screenshots/01_vm_baseline_profiling.jpeg) | 934.44 EPS, 2.14 ms avg latency |
-| **Container Baseline** | [02_container_baseline_profiling.jpeg](results/screenshots/02_container_baseline_profiling.jpeg) | 915.55 EPS, 2.18 ms avg latency |
-| **VM CPU 1-Thread** | [03_vm_cpu_1thread.jpeg](results/screenshots/03_vm_cpu_1thread.jpeg) | 515.84 EPS, 1.94 ms latency |
-| **Container CPU 1-Thread** | [04_container_cpu_1thread.jpeg](results/screenshots/04_container_cpu_1thread.jpeg) | 517.19 EPS, 1.93 ms latency |
-| **VM CPU 2-Thread** | [05_vm_cpu_2thread.jpeg](results/screenshots/05_vm_cpu_2thread.jpeg) | 883.55 EPS, 2.26 ms latency |
-| **Container CPU 2-Thread** | [06_container_cpu_2thread.jpeg](results/screenshots/06_container_cpu_2thread.jpeg) | 894.38 EPS, 2.23 ms latency |
-| **VM CPU 4-Thread** | [07_vm_cpu_4thread.jpeg](results/screenshots/07_vm_cpu_4thread.jpeg) | 928.17 EPS, 4.30 ms latency |
-| **Container CPU 4-Thread** | [08_container_cpu_4thread.jpeg](results/screenshots/08_container_cpu_4thread.jpeg) | 900.45 EPS, 4.43 ms latency |
-| **VM CPU 8-Thread** | [09_vm_cpu_8thread.jpeg](results/screenshots/09_vm_cpu_8thread.jpeg) | 905.17 EPS, 8.82 ms latency |
-| **Container CPU 8-Thread** | [10_container_cpu_8thread.jpeg](results/screenshots/10_container_cpu_8thread.jpeg) | 914.42 EPS, 8.73 ms latency |
-| **VM Memory 1-Thread** | [11_vm_memory_1thread.jpeg](results/screenshots/11_vm_memory_1thread.jpeg) | 9,541.97 MiB/s transfer |
-| **Container Memory 1-Thread** | [12_container_memory_1thread.jpeg](results/screenshots/12_container_memory_1thread.jpeg) | 5,152.43 MiB/s transfer |
-| **VM Memory 2-Thread** | [13_vm_memory_2thread.jpeg](results/screenshots/13_vm_memory_2thread.jpeg) | 9,880.38 MiB/s transfer |
-| **Container Memory 2-Thread** | [14_container_memory_2thread.jpeg](results/screenshots/14_container_memory_2thread.jpeg) | 6,970.16 MiB/s transfer |
-| **VM Disk Seq Write** | [15_vm_disk_seq_write.jpeg](results/screenshots/15_vm_disk_seq_write.jpeg) | 358 MiB/s sequential write |
-| **Container Disk Seq Write** | [16_container_disk_seq_write.jpeg](results/screenshots/16_container_disk_seq_write.jpeg) | 291 MiB/s sequential write |
-| **VM Disk Seq Read** | [17_vm_disk_seq_read.jpeg](results/screenshots/17_vm_disk_seq_read.jpeg) | 461 MiB/s sequential read |
-| **Container Disk Seq Read** | [18_container_disk_seq_read.jpeg](results/screenshots/18_container_disk_seq_read.jpeg) | 500 MiB/s sequential read |
-| **VM Disk Rand Read** | [19_vm_disk_rand_read.jpeg](results/screenshots/19_vm_disk_rand_read.jpeg) | 1,313 IOPS (5,253 KiB/s) |
-| **Container Disk Rand Read** | [20_container_disk_rand_read.jpeg](results/screenshots/20_container_disk_rand_read.jpeg) | 1,767 IOPS (7,072 KiB/s) |
-| **VM Disk Rand Write** | [21_vm_disk_rand_write.jpeg](results/screenshots/21_vm_disk_rand_write.jpeg) | 1,331 IOPS (5,325 KiB/s) |
-| **Container Disk Rand Write** | [22_container_disk_rand_write.jpeg](results/screenshots/22_container_disk_rand_write.jpeg) | 1,346 IOPS (5,387 KiB/s) |
-| **VM Network Loopback** | [23_vm_network_loopback_iperf3.jpeg](results/screenshots/23_vm_network_loopback_iperf3.jpeg) | 14.1 Gbps, 3 retransmits |
-| **Container Network Server** | [24_container_network_iperf3_server.jpeg](results/screenshots/24_container_network_iperf3_server.jpeg) | Container iperf3 server binding |
-| **Container Network Client** | [25_container_network_iperf3_client.jpeg](results/screenshots/25_container_network_iperf3_client.jpeg) | 13.7 Gbps sender, 13 retransmits |
-| **FastAPI Setup & Curl** | [26_fastapi_setup_curl_verification.jpeg](results/screenshots/26_fastapi_setup_curl_verification.jpeg) | ApacheBench setup and curl validation |
-| **Container API Health** | [27_container_fastapi_health_benchmark.jpeg](results/screenshots/27_container_fastapi_health_benchmark.jpeg) | 371.07 req/sec, 269.49 ms avg latency |
-| **Container API Compute R1** | [28_container_fastapi_compute_run1.jpeg](results/screenshots/28_container_fastapi_compute_run1.jpeg) | 10.60 req/sec, 943.33 ms avg latency |
-| **Container API Compute R2** | [29_container_fastapi_compute_run2.jpeg](results/screenshots/29_container_fastapi_compute_run2.jpeg) | 10.76 req/sec, 929.47 ms avg latency |
-| **Container API Memory** | [30_container_fastapi_memory_benchmark.jpeg](results/screenshots/30_container_fastapi_memory_benchmark.jpeg) | 14.40 req/sec, 694.62 ms avg latency |
-| **VM API Compute R1** | [31_vm_fastapi_compute_run1.jpeg](results/screenshots/31_vm_fastapi_compute_run1.jpeg) | 12.01 req/sec, 832.81 ms avg latency |
-| **VM API Compute R2** | [32_vm_fastapi_compute_run2.jpeg](results/screenshots/32_vm_fastapi_compute_run2.jpeg) | 12.24 req/sec, 817.31 ms avg latency |
-| **VM API Memory** | [33_vm_fastapi_memory_benchmark.jpeg](results/screenshots/33_vm_fastapi_memory_benchmark.jpeg) | 16.43 req/sec, 608.50 ms avg latency |
-| **API Raw Results Directory** | [34_api_raw_results_directory_listing.jpeg](results/screenshots/34_api_raw_results_directory_listing.jpeg) | All 6 raw benchmark output text files |
+| **VM Baseline** | [01_vm_baseline_profiling.jpeg](screenshots/01_vm_baseline_profiling.jpeg) | 934.44 EPS, 2.14 ms avg latency |
+| **Container Baseline** | [02_container_baseline_profiling.jpeg](screenshots/02_container_baseline_profiling.jpeg) | 915.55 EPS, 2.18 ms avg latency |
+| **VM CPU 1-Thread** | [03_vm_cpu_1thread.jpeg](screenshots/03_vm_cpu_1thread.jpeg) | 515.84 EPS, 1.94 ms latency |
+| **Container CPU 1-Thread** | [04_container_cpu_1thread.jpeg](screenshots/04_container_cpu_1thread.jpeg) | 517.19 EPS, 1.93 ms latency |
+| **VM CPU 2-Thread** | [05_vm_cpu_2thread.jpeg](screenshots/05_vm_cpu_2thread.jpeg) | 883.55 EPS, 2.26 ms latency |
+| **Container CPU 2-Thread** | [06_container_cpu_2thread.jpeg](screenshots/06_container_cpu_2thread.jpeg) | 894.38 EPS, 2.23 ms latency |
+| **VM CPU 4-Thread** | [07_vm_cpu_4thread.jpeg](screenshots/07_vm_cpu_4thread.jpeg) | 928.17 EPS, 4.30 ms latency |
+| **Container CPU 4-Thread** | [08_container_cpu_4thread.jpeg](screenshots/08_container_cpu_4thread.jpeg) | 900.45 EPS, 4.43 ms latency |
+| **VM CPU 8-Thread** | [09_vm_cpu_8thread.jpeg](screenshots/09_vm_cpu_8thread.jpeg) | 905.17 EPS, 8.82 ms latency |
+| **Container CPU 8-Thread** | [10_container_cpu_8thread.jpeg](screenshots/10_container_cpu_8thread.jpeg) | 914.42 EPS, 8.73 ms latency |
+| **VM Memory 1-Thread** | [11_vm_memory_1thread.jpeg](screenshots/11_vm_memory_1thread.jpeg) | 9,541.97 MiB/s transfer |
+| **Container Memory 1-Thread** | [12_container_memory_1thread.jpeg](screenshots/12_container_memory_1thread.jpeg) | 5,152.43 MiB/s transfer |
+| **VM Memory 2-Thread** | [13_vm_memory_2thread.jpeg](screenshots/13_vm_memory_2thread.jpeg) | 9,880.38 MiB/s transfer |
+| **Container Memory 2-Thread** | [14_container_memory_2thread.jpeg](screenshots/14_container_memory_2thread.jpeg) | 6,970.16 MiB/s transfer |
+| **VM Disk Seq Write** | [15_vm_disk_seq_write.jpeg](screenshots/15_vm_disk_seq_write.jpeg) | 358 MiB/s sequential write |
+| **Container Disk Seq Write** | [16_container_disk_seq_write.jpeg](screenshots/16_container_disk_seq_write.jpeg) | 291 MiB/s sequential write |
+| **VM Disk Seq Read** | [17_vm_disk_seq_read.jpeg](screenshots/17_vm_disk_seq_read.jpeg) | 461 MiB/s sequential read |
+| **Container Disk Seq Read** | [18_container_disk_seq_read.jpeg](screenshots/18_container_disk_seq_read.jpeg) | 500 MiB/s sequential read |
+| **VM Disk Rand Read** | [19_vm_disk_rand_read.jpeg](screenshots/19_vm_disk_rand_read.jpeg) | 1,313 IOPS (5,253 KiB/s) |
+| **Container Disk Rand Read** | [20_container_disk_rand_read.jpeg](screenshots/20_container_disk_rand_read.jpeg) | 1,767 IOPS (7,072 KiB/s) |
+| **VM Disk Rand Write** | [21_vm_disk_rand_write.jpeg](screenshots/21_vm_disk_rand_write.jpeg) | 1,331 IOPS (5,325 KiB/s) |
+| **Container Disk Rand Write** | [22_container_disk_rand_write.jpeg](screenshots/22_container_disk_rand_write.jpeg) | 1,346 IOPS (5,387 KiB/s) |
+| **VM Network Loopback** | [23_vm_network_loopback_iperf3.jpeg](screenshots/23_vm_network_loopback_iperf3.jpeg) | 14.1 Gbps, 3 retransmits |
+| **Container Network Server** | [24_container_network_iperf3_server.jpeg](screenshots/24_container_network_iperf3_server.jpeg) | Container iperf3 server binding |
+| **Container Network Client** | [25_container_network_iperf3_client.jpeg](screenshots/25_container_network_iperf3_client.jpeg) | 13.7 Gbps sender, 13 retransmits |
+| **FastAPI Setup & Curl** | [26_fastapi_setup_curl_verification.jpeg](screenshots/26_fastapi_setup_curl_verification.jpeg) | ApacheBench setup and curl validation |
+| **Container API Health** | [27_container_fastapi_health_benchmark.jpeg](screenshots/27_container_fastapi_health_benchmark.jpeg) | 371.07 req/sec, 269.49 ms avg latency |
+| **Container API Compute R1** | [28_container_fastapi_compute_run1.jpeg](screenshots/28_container_fastapi_compute_run1.jpeg) | 10.60 req/sec, 943.33 ms avg latency |
+| **Container API Compute R2** | [29_container_fastapi_compute_run2.jpeg](screenshots/29_container_fastapi_compute_run2.jpeg) | 10.76 req/sec, 929.47 ms avg latency |
+| **Container API Memory** | [30_container_fastapi_memory_benchmark.jpeg](screenshots/30_container_fastapi_memory_benchmark.jpeg) | 14.40 req/sec, 694.62 ms avg latency |
+| **VM API Compute R1** | [31_vm_fastapi_compute_run1.jpeg](screenshots/31_vm_fastapi_compute_run1.jpeg) | 12.01 req/sec, 832.81 ms avg latency |
+| **VM API Compute R2** | [32_vm_fastapi_compute_run2.jpeg](screenshots/32_vm_fastapi_compute_run2.jpeg) | 12.24 req/sec, 817.31 ms avg latency |
+| **VM API Memory** | [33_vm_fastapi_memory_benchmark.jpeg](screenshots/33_vm_fastapi_memory_benchmark.jpeg) | 16.43 req/sec, 608.50 ms avg latency |
+| **API Raw Results Directory** | [34_api_raw_results_directory_listing.jpeg](screenshots/34_api_raw_results_directory_listing.jpeg) | All 6 raw benchmark output text files |
 
 ---
 
@@ -401,68 +572,122 @@ python scripts/analyze_results.py
 
 ## 9. Conclusion & Architectural Recommendations
 
-This benchmark evaluation provides an empirical and architectural comparison between Virtual Machines and Docker Containers across compute, memory, storage, networking, and microservice application tiers:
+This benchmark evaluation provides an empirical comparison between Virtual Machines and Docker Containers across CPU, memory, storage I/O, networking, FastAPI application performance, and application startup time.
 
-1. **Compute Equivalence (Bare-Metal Instruction Execution):**
-   - Sysbench CPU benchmark results demonstrate $< 1\%$ variance across 1, 2, 4, and 8 threads.
-   - Because containers are native processes managed directly by the host Linux Completely Fair Scheduler (CFS), they avoid virtualization traps and binary translation overhead.
+### 1. CPU Performance
 
-2. **Storage I/O Performance (Direct VFS vs Hypervisor Driver):**
-   - Docker delivers **+34.58% higher 4K random read IOPS** (1,767 IOPS vs. 1,313 IOPS) and lower access latency (0.56 ms vs. 0.75 ms).
-   - Containers interact directly with the Linux Virtual File System (VFS) cache, while Virtual Machines incur guest OS filesystem translation and virtual SCSI controller interrupt emulation.
+- The Sysbench CPU results showed **closely matched performance** between the VM and Docker container across 1, 2, 4, and 8 threads.
+- The largest measured throughput difference was approximately **3.08%** at 4 threads.
+- At thread counts beyond the available 2 virtual CPU cores, throughput largely plateaued while latency increased due to CPU resource contention.
+- These results indicate that both environments delivered similar CPU performance for the tested workloads.
 
-3. **Memory & Network Virtualization Overhead:**
-   - VM direct loopback achieves higher memory write bandwidth and lower network latency with only 3 TCP retransmissions vs 13 on Docker.
-   - In containerized environments, packets traverse the `docker0` bridge, `veth` pairs, and `iptables` NAT routing rules, resulting in a ~13–14% throughput overhead under high-concurrency HTTP load (FastAPI ApacheBench benchmarks).
+### 2. Memory Performance
 
-4. **Strategic Workload Recommendations:**
-   - **Deploy Containers (Docker):** When designing cloud-native microservices, horizontally scaling REST APIs, CI/CD runners, and applications demanding rapid elasticity, high deployment density, and maximum random I/O throughput.
-   - **Deploy Virtual Machines (KVM / VMware):** When running untrusted multi-tenant workloads requiring hardware-enforced hypervisor security boundaries, heterogeneous OS kernels (Linux, Windows, BSD), or legacy enterprise monoliths.
+- The VM achieved higher measured sequential memory write throughput in both tested configurations.
+- At 1 thread, the VM achieved **9,541.97 MiB/s**, compared with **5,152.43 MiB/s** for Docker.
+- At 2 threads, the VM achieved **9,880.38 MiB/s**, compared with **6,970.16 MiB/s** for Docker.
+- These results are specific to the tested VM resources, Docker configuration, workload size, and system conditions.
+
+### 3. Storage I/O Performance
+
+- Storage performance varied according to the workload pattern.
+- Docker achieved higher performance for sequential read, random read, and random write in the measured tests.
+- The largest difference occurred in the **4K random-read workload**, where Docker achieved **1,767 IOPS** compared with **1,313 IOPS** for the VM, representing a **34.58% higher measured IOPS**.
+- The VM performed better for sequential write, achieving **358 MiB/s** compared with **291 MiB/s** for Docker.
+
+### 4. Network Performance
+
+- The VM loopback test achieved **14.1 Gbits/sec** sender and receiver throughput with **3 TCP retransmissions**.
+- The Docker bridge test achieved **13.7 Gbits/sec** sender throughput and **10.3 Gbits/sec** receiver throughput with **13 TCP retransmissions**.
+- The two tests used different network paths, so the results should be interpreted as measurements of the tested configurations rather than a perfectly identical network comparison.
+- Docker's tested network path involved the `veth` pair, `docker0` bridge, and packet-processing/NAT components.
+
+### 5. FastAPI Application Performance
+
+- The FastAPI application was evaluated using `/health`, `/compute`, and `/memory` endpoints with ApacheBench.
+- The VM achieved higher measured throughput for all three endpoints:
+  - `/health`: **419.79 req/sec** vs **371.07 req/sec**
+  - `/compute`: **12.24 req/sec** vs **10.76 req/sec**
+  - `/memory`: **16.43 req/sec** vs **14.40 req/sec**
+- All tested requests completed successfully with **zero failed requests**.
+- The measured results indicate that the VM provided approximately **13–14% higher application throughput** for these particular FastAPI workloads.
+
+### 6. Startup Time Performance
+
+- The FastAPI application became ready in **2.961 seconds** when executed natively inside the VM.
+- The Dockerized application became ready in **7.246 seconds**.
+- In this measured run, the VM reached application readiness approximately **59.1% faster** than Docker.
+- This result is specific to the tested configuration and includes application launch and successful `/health` response detection.
+
+### 7. Overall Architectural Recommendation
+
+The experiments demonstrate that neither virtualization approach was universally faster across every workload.
+
+- **Docker Containers:** Performed particularly well in the tested storage workloads, including 4K random reads, and provide an OS-level isolation model suitable for containerized application deployment.
+- **Virtual Machines:** Produced higher measured memory throughput, higher FastAPI application throughput, and faster measured FastAPI application readiness in this experimental configuration.
+- **Workload-specific selection:** The appropriate technology should therefore be selected according to workload requirements, isolation needs, deployment model, resource constraints, and performance characteristics rather than assuming that one approach is always faster.
+
+Overall, the experiment demonstrates that VM and container performance differences depend strongly on the subsystem and workload being evaluated. The benchmark results provide an empirical basis for understanding these trade-offs within the tested environment.
 
 ---
 
 ## 10. Project Directory Layout
 
-```
+```text
 vm-vs-container-performance/
-├── README.md                                  # Complete Experiment 2 Documentation & Analysis
-├── LAB_REPORT.md                              # Formal Academic Laboratory Report Submission
 │
-├── docs/                                      # Lab Manual & Specifications
-│   └── Performance_Analysis_VM_vs_Containers_Lab_Manual_Revised.pdf
+├── README.md                                  # Complete Experiment Documentation & Analysis
+├── LAB_REPORT.md                              # Formal Academic Laboratory Report
+├── .gitignore                                 # Git ignore configuration
 │
-├── docker/                                    # Containerization Assets
-│   └── Dockerfile                             # Benchmark Docker Environment Image
-│
-├── api/                                       # FastAPI Microservice (Stage 6)
-│   ├── main.py                                # Application endpoints
+├── api/                                       # FastAPI Microservice
+│   ├── main.py                                # FastAPI application endpoints
 │   ├── requirements.txt                       # Python dependencies
-│   └── Dockerfile                             # Lightweight Uvicorn microservice container
+│   └── Dockerfile                             # FastAPI container image
 │
-├── workloads/                                 # Algorithmic Compute Workloads
-│   └── fibonacci.py                           # CPU-bound recursive benchmark
+├── docker/                                    # Benchmark Containerization Assets
+│   └── Dockerfile                             # Docker benchmark environment
 │
-├── scripts/                                   # Automation & Analytical Tools
-│   ├── run_cpu.sh                             # CPU benchmark automation
-│   ├── run_memory.sh                          # Memory benchmark automation
-│   ├── run_disk.sh                            # FIO storage benchmark automation
-│   ├── run_network.sh                         # iperf3 network benchmark automation
-│   ├── analyze_results.py                     # Quantitative delta calculator
-│   └── generate_plots.py                      # Matplotlib publication chart generator
+├── figures/                                   # Generated Analytical Visualizations
+│   ├── overall_performance_dashboard.png      # Overall VM vs Docker dashboard
+│   ├── cpu_scalability.png                    # CPU scalability comparison
+│   ├── memory_performance.png                 # Memory performance comparison
+│   ├── disk_io_performance.png                # Disk I/O comparison
+│   ├── network_performance.png                # Network performance comparison
+│   ├── fastapi_performance.png                # FastAPI performance comparison
+│   └── graphs.py                               # Figure generation code
 │
-└── results/                                   # Experimental Results & Figures
-    ├── raw/                                   # 31 raw benchmark output logs
-    │   ├── baseline/                          # Baseline profiling logs
-    │   ├── cpu/                               # 1, 2, 4, 8 thread CPU logs
-    │   ├── memory/                            # 1, 2 thread memory logs
-    │   ├── disk/                              # Sequential & random FIO logs
-    │   ├── network/                           # Loopback & Docker bridge iperf3 logs
-    │   └── api/                               # ApacheBench FastAPI benchmark logs
-    ├── screenshots/                           # 34 categorized screenshot evidence files
-    ├── processed/                             # Processed CSV datasets
-    └── figures/                               # Generated comparison plots
+├── processed/                                 # Processed Benchmark Datasets
+│   ├── api_results.csv                        # FastAPI benchmark results
+│   ├── cpu_results.csv                        # CPU benchmark results
+│   ├── disk_results.csv                      # Disk benchmark results
+│   ├── memory_results.csv                    # Memory benchmark results
+│   ├── network_results.csv                   # Network benchmark results
+│   └── summary_comparison.csv                 # Overall comparison data
+│
+├── results/                                   # Raw Experimental Results
+│   └── raw/
+│       ├── baseline/                          # Baseline profiling results
+│       ├── cpu/                               # CPU benchmark output logs
+│       ├── memory/                            # Memory benchmark output logs
+│       ├── disk/                              # Disk I/O benchmark output logs
+│       ├── network/                           # Network benchmark output logs
+│       └── api/                               # FastAPI benchmark output logs
+│
+├── screenshots/                               # Experimental Evidence
+│   ├── 01_vm_baseline_profiling.jpeg
+│   ├── 02_container_baseline_profiling.jpeg
+│   ├── ...
+│   └── 34_api_raw_results_directory_listing.jpeg
+│
+└── scripts/                                   # Automation & Analysis Scripts
+    ├── run_cpu.sh                             # CPU benchmark automation
+    ├── run_memory.sh                          # Memory benchmark automation
+    ├── run_disk.sh                            # Disk benchmark automation
+    ├── run_network.sh                         # Network benchmark automation
+    ├── analyze_results.py                     # Benchmark result analysis
+    └── generate_plots.py                      # Analytical plot generation
+---
 ```
 
----
-
-*Academic Portfolio maintained by **Soumya Surpur** (USN: `01FE24BCI121`, Roll No: `245`) for Cloud Computing Laboratory Coursework.*
+*Academic Portfolio maintained by **Soumya** (USN: `01FE24BCI121`, Roll No: `245`) for Cloud Computing Laboratory Coursework.*
