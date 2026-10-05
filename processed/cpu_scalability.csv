@@ -1,0 +1,9 @@
+environment,threads,events_per_second,p95_latency_ms
+VM,1,233.97,5.09
+VM,2,458.01,5.99
+VM,4,458.78,11.87
+VM,8,463.39,23.52
+Docker,1,228.28,5.57
+Docker,2,438.40,6.32
+Docker,4,434.38,13.95
+Docker,8,434.79,27.17
